@@ -1,1 +1,2 @@
-from .elo import Elo, Player
+from .elo import Elo
+from .player import Player

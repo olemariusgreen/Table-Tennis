@@ -1,7 +1,7 @@
 class Game:
-    def __init__(self, player1, player2):
-        self.player1 = player1
-        self.player2 = player2
+    def __init__(self, player_a, player_b):
+        self.player_a = player_a
+        self.player_b = player_b
         self.score_a = 0
         self.score_b = 0
 
@@ -30,6 +30,6 @@ class Game:
             return None
 
         if self.score_a > self.score_b:
-            return self.player1
+            return self.player_a
 
-        return self.player2
+        return self.player_b
