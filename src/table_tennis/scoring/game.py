@@ -1,13 +1,21 @@
 class Game:
-    def __init__(self):
+    def __init__(self, player1, player2):
+        self.player1 = player1
+        self.player2 = player2
         self.score_a = 0
         self.score_b = 0
 
     def point_to_a(self):
-        self.score_a += 1
+        if not self.is_finished:
+            self.score_a += 1
+        else: 
+            self.score_a += 0
 
     def point_to_b(self):
-        self.score_b += 1
+        if not self.is_finished:
+            self.score_b += 1
+        else: 
+            self.score_b += 0
 
     @property
     def is_finished(self):
@@ -22,6 +30,6 @@ class Game:
             return None
 
         if self.score_a > self.score_b:
-            return "A"
+            return self.player1
 
-        return "B"
+        return self.player2
