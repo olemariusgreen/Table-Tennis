@@ -1,4 +1,5 @@
 from src.table_tennis.rating.elo import Elo
+from src.table_tennis.scoring.game import Game
 
 def test_register_player():
     elo = Elo()
@@ -25,10 +26,18 @@ def test_get_player():
 def test_elo_change_equal_players():
     elo = Elo()
 
-    elo.register_player("Ole")
-    elo.register_player("Per")
+    ole = elo.register_player("Ole")
+    per = elo.register_player("Per")
 
-    elo.calculate_change("Ole", "Per", "A")
+    game1 = Game(ole,per)
+
+    for _ in range(11):
+        game1.point_to_a()
+
+    for _ in range(9):
+        game1.point_to_b()
+
+    elo.calculate_change(game1)
 
     assert elo.get_player("Ole").elo == 1020
     assert elo.get_player("Per").elo == 980

@@ -8,13 +8,14 @@ class Elo:
     def register_player(self, name, elo=1000, k_fac = 40, games_played = 0):
         player = Player(name, elo, k_fac, games_played)
         self.players[name] = player
+        return player
 
     def get_player(self, name):
         return self.players[name]
 
     def calculate_change(self, game):
         player_a = game.player_a
-        player_b = game.player_a
+        player_b = game.player_b
         if game.winner == player_a:
             S_A = 1
             S_B = 0 
