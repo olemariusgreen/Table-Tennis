@@ -1,5 +1,14 @@
 {
-    "players": {
-        
+  "players": {
+    "a": {
+      "elo": 980.0,
+      "k_fac": 40,
+      "games_played": 1
+    },
+    "b": {
+      "elo": 1000,
+      "k_fac": 40,
+      "games_played": 0
     }
+  }
 }

@@ -3,9 +3,9 @@ import json
 class Player:
     def __init__(self, name="Ole Marius Green", player_dict=None):
         """
-        name = "name"
-
-        player_dict = {"elo": ..., "k_fac": ..., "games_played": ...}
+        Args:
+            name: name in string format
+            player_dict: dict with format {"elo": _ , "k_fac": _ , "games_played": _ }
         """
         if player_dict is None:
             player_dict = {"elo": 1000, "k_fac": 40, "games_played": 0}
@@ -30,17 +30,22 @@ class Player:
         return {"elo": self.elo, "k_fac": self.k_fac, "games_played": self.games_played}
 
     def write_to_player_json(self):
-        with open("data/players.json") as file:
-            data = json.load(file)
-            player_data = self.to_dict()
-            data["players"][self.name] = player_data
-
+        """Assumes player is already in players.json"""
+        with open("data/players.json") as read_file:
+            data = json.load(read_file)
+        players = data.setdefault("players", {})
+        player_data = self.to_dict()
+        players[self.name] = player_data
+        with open("data/players.json", "w") as write_file:
+            json.dump(data, write_file, indent=2, ensure_ascii=False)
 
 def who_is_json(player_name: str) -> dict:
-    with open ("data/players.json") as file:
-        data = json.load(file)
-        if data["players"][player_name]:
-            return data["players"][player_name]
-        else:
-            new_player = Player(name=player_name)
-            return data["players"][player_name]
+    with open("data/players.json") as read_file:
+        data = json.load(read_file)
+    players = data.setdefault("players", {})
+    if player_name not in players:
+        new_player = Player(name=player_name)
+        players[player_name] = {"elo": new_player.elo, "k_fac": new_player.k_fac, "games_played": new_player.games_played}
+        with open("data/players.json", "w") as write_file:
+            json.dump(data, write_file, indent=2, ensure_ascii=False)
+    return players[player_name]
