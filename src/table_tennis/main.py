@@ -2,6 +2,7 @@ import json
 
 from .scoring.game import Game
 from .rating import Elo
+from .rating.json_helpers import write_to_elo_ranking_json, write_to_games
 
 def main():
 
@@ -36,6 +37,9 @@ def main():
     print(f"Player {game.winner} wins!")
 
     elo_game_instance.calculate_change(game.winner)
+
+    write_to_games(game)
+    write_to_elo_ranking_json()
 
 if __name__ == "__main__":
     main()

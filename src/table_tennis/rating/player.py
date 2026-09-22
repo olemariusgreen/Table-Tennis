@@ -38,14 +38,3 @@ class Player:
         players[self.name] = player_data
         with open("data/players.json", "w") as write_file:
             json.dump(data, write_file, indent=2, ensure_ascii=False)
-
-def who_is_json(player_name: str) -> dict:
-    with open("data/players.json") as read_file:
-        data = json.load(read_file)
-    players = data.setdefault("players", {})
-    if player_name not in players:
-        new_player = Player(name=player_name)
-        players[player_name] = {"elo": new_player.elo, "k_fac": new_player.k_fac, "games_played": new_player.games_played}
-        with open("data/players.json", "w") as write_file:
-            json.dump(data, write_file, indent=2, ensure_ascii=False)
-    return players[player_name]

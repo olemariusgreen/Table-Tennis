@@ -1,5 +1,4 @@
 __pycache__/
-data/
 *.py[cod]
 .venv/
 .pytest_cache/
@@ -9,3 +8,4 @@ data/
 *.egg-info/
 dist/
 build/
+data/
