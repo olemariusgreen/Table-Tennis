@@ -1,9 +1,8 @@
-from table_tennis.rating.player import Player
-
 class Game:
-    def __init__(self, player1: Player, player2: Player):
-        self.player_A = player1
-        self.player_B = player2
+    def __init__(self, player1_name: str, player2_name: str):
+        
+        self.player_A = player1_name
+        self.player_B = player2_name
         self.score_a = 0
         self.score_b = 0
 
@@ -28,10 +27,8 @@ class Game:
 
     @property
     def winner(self) -> str:
-        if not self.is_finished:
-            return None
-
-        if self.score_a > self.score_b:
-            return self.player_A.name
-
-        return self.player_B.name
+        if self.is_finished:
+            if self.score_a > self.score_b:
+                return self.player_A
+            return self.player_B
+        return None
