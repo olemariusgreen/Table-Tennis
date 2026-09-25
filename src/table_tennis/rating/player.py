@@ -30,9 +30,12 @@ class Player:
         return {"elo": self.elo, "k_fac": self.k_fac, "games_played": self.games_played}
 
     def write_to_player_json(self):
-        """Assumes player is already in players.json"""
-        with open("data/players.json") as read_file:
-            data = json.load(read_file)
+        try:
+            with open("data/players.json") as read_file:
+                data = json.load(read_file)["players"]
+        except(FileNotFoundError):
+            data = {}
+
         players = data.setdefault("players", {})
         player_data = self.to_dict()
         players[self.name] = player_data
