@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin · NPPU</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="home">
+
+<header class="tabbar">
+  <a class="wordmark" href="/">NPPU<span class="tag">: admin</span></a>
+</header>
+
+<main>
+  <h1>Tables</h1>
+  <p class="lede">Players and their codes at each table.</p>
+  <input id="search" type="search" placeholder="Find a player…" autocomplete="off">
+  <ul id="tables" class="cards"><li class="muted">Loading…</li></ul>
+</main>
+
+<section class="announcements">
+  <div class="announcements-head">
+    <h2>Announcements:</h2>
+    <button id="toggle-edit" type="button">Add/edit announcements</button>
+  </div>
+  <form id="new" hidden>
+    <textarea id="new-body" rows="3" maxlength="2000" placeholder="New announcement" required></textarea>
+    <p><button type="submit">Post</button> <span id="result"></span></p>
+  </form>
+  <ul id="announcements"><li class="muted">Loading…</li></ul>
+</section>
+
+<script>
+// Served by the worker only after the browser's password prompt; every
+// /admin/api call below rides on that same login. Everything user-written is
+// set with textContent, never innerHTML.
+const result = document.getElementById("result");
+// origin, not a relative path: a page opened as https://user:pass@host/admin
+// would otherwise make every fetch() throw
+const api = path => location.origin + path;
+let editing = false;
+
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text != null) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+async function send(method, url, body) {
+  const r = await fetch(api(url), {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body && JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  result.textContent = r.ok ? "Saved." : (data.error ?? "Something went wrong.");
+  result.className = r.ok ? "muted" : "error";
+  if (r.ok) loadAnnouncements();
+  return r.ok;
+}
+
+// ---------- tables: name/code registry ----------
+
+async function loadCodes() {
+  const list = document.getElementById("tables");
+  let tables;
+  try {
+    ({ tables } = await fetch(api("/admin/api/codes"), { cache: "no-store" }).then(r => r.json()));
+  } catch {
+    list.replaceChildren(el("li", "Could not reach the server.", "error"));
+    return;
+  }
+  list.replaceChildren();
+  for (const [table, players] of Object.entries(tables)) {
+    const details = el("details");
+    const summary = el("summary", table);
+    summary.append(el("span", `${players.length} player${players.length === 1 ? "" : "s"}`, "sub"));
+    details.append(summary);
+    if (players.length === 0) {
+      details.append(el("p", "No players yet.", "muted"));
+    } else {
+      const t = el("table", null, "codes");
+      t.innerHTML = "<thead><tr><th>Player</th><th class=\"elo\">Code</th></tr></thead>";
+      const tbody = t.createTBody();
+      for (const p of players) {
+        const tr = tbody.insertRow();
+        tr.dataset.name = p.name.toLowerCase();
+        tr.append(el("td", p.name), el("td", p.code, "elo code"));
+      }
+      details.append(t);
+    }
+    const li = el("li");
+    li.append(details);
+    list.append(li);
+  }
+  filter();
+}
+
+// type a name: hide non-matching rows, open the tables that still have one
+function filter() {
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  for (const details of document.querySelectorAll("#tables details")) {
+    let hits = 0;
+    for (const tr of details.querySelectorAll("tbody tr")) {
+      const show = !q || tr.dataset.name.includes(q);
+      tr.hidden = !show;
+      hits += show;
+    }
+    if (q) details.open = hits > 0;
+    details.parentElement.hidden = q && hits === 0;
+  }
+}
+document.getElementById("search").oninput = filter;
+
+// ---------- announcements ----------
+
+async function loadAnnouncements() {
+  const ul = document.getElementById("announcements");
+  const { announcements } = await fetch(api("/api/announcements"), { cache: "no-store" }).then(r => r.json());
+  ul.replaceChildren();
+  if (announcements.length === 0) ul.append(el("li", "Nothing yet.", "muted"));
+  for (const a of announcements) {
+    const li = el("li");
+    const text = el("div", a.body);
+    li.append(el("time", new Date(a.posted_at).toLocaleString()), text);
+    if (editing) {
+      const edit = el("button", "Edit");
+      const del = el("button", "Delete");
+      edit.type = del.type = "button";
+      del.onclick = () => confirm("Delete this announcement?") &&
+        send("DELETE", "/admin/api/announcements?id=" + a.id);
+      edit.onclick = () => {
+        const box = el("textarea");
+        box.value = a.body;
+        box.maxLength = 2000;
+        box.rows = 3;
+        const save = el("button", "Save");
+        const cancel = el("button", "Cancel");
+        save.type = cancel.type = "button";
+        save.onclick = () => send("PUT", "/admin/api/announcements?id=" + a.id, { body: box.value });
+        cancel.onclick = loadAnnouncements;
+        text.replaceWith(box);
+        actions.replaceChildren(save, cancel);
+        box.focus();
+      };
+      const actions = el("div", null, "actions");
+      actions.append(edit, del);
+      li.append(actions);
+    }
+    ul.append(li);
+  }
+}
+
+document.getElementById("toggle-edit").onclick = e => {
+  editing = !editing;
+  e.target.textContent = editing ? "Done" : "Add/edit announcements";
+  document.getElementById("new").hidden = !editing;
+  result.textContent = "";
+  loadAnnouncements();
+};
+
+document.getElementById("new").onsubmit = async e => {
+  e.preventDefault();
+  const body = document.getElementById("new-body");
+  if (await send("POST", "/admin/api/announcements", { body: body.value })) body.value = "";
+};
+
+loadCodes();
+loadAnnouncements();
+</script>
+
+<footer>
+  <p class="muted">Admin view. Codes are per person, so one code works at every table.</p>
+</footer>
+
+</body>
+</html>

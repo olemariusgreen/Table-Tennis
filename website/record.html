@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record a match · NPPU</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="tabbar">
+  <a class="wordmark" href="index.html">NPPU<span class="tag">: ping for en bedre pong</span></a>
+  <nav>
+    <a href="index.html">Tables</a>
+    <a id="nav-board" href="#">Leaderboard</a>
+    <a id="nav-record" href="#">Record</a>
+  </nav>
+</header>
+
+<main>
+  <h1 id="title">Record a match</h1>
+
+  <form id="form">
+    <div class="player">
+      <label>Player 1 <input id="player_a" autocomplete="off" required></label>
+      <label class="pin">Code <input id="pin_a" type="password" inputmode="numeric"
+        pattern="[0-9]{4}" maxlength="4" autocomplete="off" required></label>
+    </div>
+    <div class="player">
+      <label>Player 2 <input id="player_b" autocomplete="off" required></label>
+      <label class="pin">Code <input id="pin_b" type="password" inputmode="numeric"
+        pattern="[0-9]{4}" maxlength="4" autocomplete="off" required></label>
+    </div>
+    <p class="hint muted">New player? The 4-digit code you pick now is the one you
+      will use from then on. Forgotten it? See the bottom of the page.</p>
+
+    <fieldset class="games">
+      <legend>Point score of each game</legend>
+      <div id="rows"></div>
+      <p><button type="button" id="add">+ add game</button></p>
+    </fieldset>
+
+    <p id="summary"></p>
+    <p><button type="submit" id="save">Save match</button></p>
+  </form>
+
+  <p id="result"></p>
+</main>
+
+<script src="table.js"></script>
+<script>
+let TABLE = null;
+const rows = document.getElementById("rows");
+const nameA = document.getElementById("player_a");
+const nameB = document.getElementById("player_b");
+const summary = document.getElementById("summary");
+const result = document.getElementById("result");
+const save = document.getElementById("save");
+
+// Same rule as Game.is_finished in scoring/game.py. The server re-checks and is
+// authoritative; this copy only exists so the page can react as you type.
+function gameWinner(a, b) {
+  const hi = Math.max(a, b), lo = Math.min(a, b);
+  const finished = (hi === 11 && lo <= 9) || (hi > 11 && hi - lo === 2);
+  if (!finished) return null;
+  return a > b ? "a" : "b";
+}
+
+function addRow() {
+  const n = rows.children.length + 1;
+  const div = document.createElement("div");
+  div.className = "game-row";
+  div.innerHTML = `<span>Game ${n}</span>
+    <input type="number" min="0" max="99" inputmode="numeric" aria-label="Game ${n}, player 1">
+    <span>–</span>
+    <input type="number" min="0" max="99" inputmode="numeric" aria-label="Game ${n}, player 2">`;
+  rows.append(div);
+  div.querySelectorAll("input").forEach(i => i.addEventListener("input", update));
+}
+
+function collect() {
+  const scores = [];
+  let blank = 0, invalid = 0;
+  for (const row of rows.children) {
+    const [ia, ib] = row.querySelectorAll("input");
+    if (ia.value === "" && ib.value === "") { blank++; row.classList.remove("invalid"); continue; }
+    const a = Number(ia.value), b = Number(ib.value);
+    const winner = Number.isInteger(a) && Number.isInteger(b) ? gameWinner(a, b) : null;
+    row.classList.toggle("invalid", winner === null);
+    if (winner === null) { invalid++; continue; }
+    scores.push({ a, b, winner });
+  }
+  return { scores, blank, invalid };
+}
+
+function update() {
+  const { scores, invalid } = collect();
+  const a = nameA.value.trim() || "Player 1";
+  const b = nameB.value.trim() || "Player 2";
+  const wonA = scores.filter(s => s.winner === "a").length;
+  const wonB = scores.filter(s => s.winner === "b").length;
+
+  if (scores.length === 0) {
+    summary.textContent = invalid ? "Not a finished game score." : "";
+  } else {
+    const lead = wonA === wonB ? "Level" : `${wonA > wonB ? a : b} leads`;
+    summary.textContent = `${a} ${wonA} – ${wonB} ${b}${invalid ? "  (fix the red rows)" : ""}` +
+      (wonA === wonB ? `  — ${lead}, no winner yet` : "");
+  }
+  save.disabled = invalid > 0 || scores.length === 0 || wonA === wonB;
+  return { scores, wonA, wonB };
+}
+
+document.getElementById("add").addEventListener("click", () => { addRow(); update(); });
+nameA.addEventListener("input", update);
+nameB.addEventListener("input", update);
+
+document.getElementById("form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const { scores } = update();
+  result.textContent = "";
+  save.disabled = true;
+
+  let response, body;
+  try {
+    response = await fetch("/api/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        table: TABLE,
+        player_a: nameA.value.trim(),
+        player_b: nameB.value.trim(),
+        pin_a: document.getElementById("pin_a").value,
+        pin_b: document.getElementById("pin_b").value,
+        games: scores.map(s => [s.a, s.b]),
+      }),
+    });
+    body = await response.json();
+  } catch {
+    result.className = "error";
+    result.textContent = "Could not reach the server. Is it running?";
+    save.disabled = false;
+    return;
+  }
+
+  if (!response.ok) {
+    result.className = "error";
+    result.textContent = body.error || "Could not save the match.";
+    save.disabled = false;
+    return;
+  }
+
+  const elos = Object.entries(body.elo)
+    // elo is stored as a float; whole numbers are for humans
+    .map(([name, elo]) => `${name} ${Math.round(elo)}`).join(", ");
+  result.className = "";
+  result.textContent = `Saved. ${body.winner} won ${body.games_won[0]}–${body.games_won[1]}. New elo: ${elos}.`;
+  rows.replaceChildren();
+  for (let i = 0; i < 3; i++) addRow();
+  // never leave someone's code sitting in the form for the next person
+  document.getElementById("pin_a").value = "";
+  document.getElementById("pin_b").value = "";
+  update();
+});
+
+async function start() {
+  TABLE = await requireTable();
+  if (!TABLE) return;
+  document.title = `Record at ${TABLE} · NPPU`;
+  document.getElementById("title").textContent = `Record a match at ${TABLE}`;
+  setupNav(TABLE, "record");
+  for (let i = 0; i < 3; i++) addRow();
+  update();
+}
+
+start();
+</script>
+
+<footer>
+  <p>Forgot your code? Email
+    <a href="mailto:wilhelbr@stud.ntnu.no">wilhelbr@stud.ntnu.no</a> and it will be reset.</p>
+  <p class="muted">Made by Ole Marius Green &amp; Wilhelm Brente</p>
+</footer>
+
+</body>
+</html>

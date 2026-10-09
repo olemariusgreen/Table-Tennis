@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NPPU</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="home">
+
+<header class="tabbar">
+  <a class="wordmark" href="index.html">NPPU<span class="tag">: ping for en bedre pong</span></a>
+</header>
+
+<main>
+  <h1>Tables</h1>
+  <p class="lede">Each table keeps its own ratings.</p>
+  <ul id="tables" class="cards"><li class="muted">Loading…</li></ul>
+</main>
+
+<section class="announcements">
+  <h2>Announcements:</h2>
+  <ul id="announcements"><li class="muted">Loading…</li></ul>
+</section>
+
+<script>
+// textContent, never innerHTML: announcements are plain text
+fetch("/api/announcements", { cache: "no-store" })
+  .then(r => r.json())
+  .then(({ announcements }) => {
+    const ul = document.getElementById("announcements");
+    ul.replaceChildren();
+    if (announcements.length === 0) {
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "Nothing yet.";
+      ul.append(li);
+    }
+    for (const a of announcements) {
+      const li = document.createElement("li");
+      const when = document.createElement("time");
+      when.textContent = new Date(a.posted_at).toLocaleDateString();
+      li.append(when, a.body);
+      ul.append(li);
+    }
+  })
+  .catch(() => document.querySelector(".announcements").remove());
+
+const list = document.getElementById("tables");
+
+fetch("/api/tables", { cache: "no-store" })
+  .then(r => r.json())
+  .then(({ tables }) => {
+    list.replaceChildren();
+    for (const table of tables) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = "table.html?table=" + encodeURIComponent(table);
+      a.textContent = table;
+      li.append(a);
+      list.append(li);
+    }
+  })
+  .catch(() => {
+    list.replaceChildren();
+    const li = document.createElement("li");
+    li.className = "error";
+    li.textContent = "Could not reach the server. Is it running?";
+    list.append(li);
+  });
+</script>
+
+<footer>
+  <p>Forgot your code? Email
+    <a href="mailto:wilhelbr@stud.ntnu.no">wilhelbr@stud.ntnu.no</a> and it will be reset.</p>
+  <p class="muted">Made by Ole Marius Green &amp; Wilhelm Brente</p>
+</footer>
+
+</body>
+</html>

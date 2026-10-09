@@ -1,0 +1,17 @@
+name = "nppu"
+main = "worker/index.js"
+compatibility_date = "2025-09-01"
+
+# Everything in website/ is served as static files. Requests that do not match
+# a file fall through to worker/index.js, which only handles /api/*.
+[assets]
+directory = "./website"
+binding = "ASSETS"
+
+# Created with:  npx wrangler d1 create nppu
+# Paste the database_id it prints into the line below.
+[[d1_databases]]
+binding = "DB"
+database_name = "nppu"
+database_id = "70543ef7-90b7-47ee-aff4-343b828bd5e9"
+

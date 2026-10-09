@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NPPU</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="tabbar">
+  <a class="wordmark" href="index.html">NPPU<span class="tag">: ping for en bedre pong</span></a>
+  <nav>
+    <a href="index.html">Tables</a>
+    <a id="nav-board" href="#">Leaderboard</a>
+    <a id="nav-record" href="#">Record</a>
+  </nav>
+</header>
+
+<div class="hero" id="hero">
+  <div class="photo" id="photo"></div>
+  <h1 id="title"></h1>
+</div>
+
+<main>
+  <ul class="cards">
+    <li><a id="board" href="#"><span>Leaderboard<span class="sub">Who is on top at this table</span></span></a></li>
+    <li><a id="record" href="#"><span>Record a match<span class="sub">Enter the score of a match played here</span></span></a></li>
+  </ul>
+</main>
+
+<script src="table.js"></script>
+<script>
+(async function () {
+  const table = await requireTable();
+  if (!table) {
+    document.getElementById("hero").remove();
+    return;
+  }
+
+  document.title = `${table} · NPPU`;
+  document.getElementById("title").textContent = table;
+  document.getElementById("photo").style.backgroundImage = tablePhoto(table);
+
+  const query = "?table=" + encodeURIComponent(table);
+  document.getElementById("board").href = "leaderboard.html" + query;
+  document.getElementById("record").href = "record.html" + query;
+  setupNav(table);
+})();
+</script>
+
+<footer>
+  <p>Forgot your code? Email
+    <a href="mailto:wilhelbr@stud.ntnu.no">wilhelbr@stud.ntnu.no</a> and it will be reset.</p>
+  <p class="muted">Made by Ole Marius Green &amp; Wilhelm Brente</p>
+</footer>
+
+</body>
+</html>

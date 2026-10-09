@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaderboard · NPPU</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="board">
+
+<header class="tabbar">
+  <a class="wordmark" href="index.html">NPPU<span class="tag">: ping for en bedre pong</span></a>
+  <nav>
+    <a href="index.html">Tables</a>
+    <a id="nav-board" href="#">Leaderboard</a>
+    <a id="nav-record" href="#">Record</a>
+  </nav>
+</header>
+
+<main>
+  <h1 id="title">Leaderboard</h1>
+
+  <table>
+    <thead>
+      <tr><th class="rank">#</th><th>Player</th><th class="elo">Elo</th><th class="elo">Matches</th></tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
+  </table>
+
+  <h2>Head to head</h2>
+  <div class="h2h-pick">
+    <select id="h2h-a" aria-label="First player"></select>
+    <span class="muted">vs</span>
+    <select id="h2h-b" aria-label="Second player"></select>
+  </div>
+  <div id="h2h-stats" class="h2h-stats" hidden></div>
+  <ul id="h2h-matches" class="matches"></ul>
+
+  <h2>Recent matches</h2>
+  <ul id="matches" class="matches"><li class="muted">Loading…</li></ul>
+</main>
+
+<script src="table.js"></script>
+<script>
+const rows = document.getElementById("rows");
+const matches = document.getElementById("matches");
+
+function cell(text, cls) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  if (cls) td.className = cls;
+  return td;
+}
+
+// FACEIT-style badge: gold/silver/bronze for the podium, red for the rest
+function rankCell(rank) {
+  const td = cell("", "rank");
+  const badge = document.createElement("span");
+  badge.className = "badge r" + Math.min(rank, 4);
+  badge.textContent = "#" + rank;
+  td.append(badge);
+  return td;
+}
+
+// rating plus the net change over the last 24 hours, green up / red down
+function eloCell(elo, change) {
+  const td = cell(Math.round(elo), "elo");
+  const delta = Math.round(change ?? 0);
+  // always present, even empty, so the ratings stay lined up
+  const span = document.createElement("span");
+  span.className = "delta" + (delta > 0 ? " up" : delta < 0 ? " down" : "");
+  if (delta !== 0) {
+    span.textContent = (delta > 0 ? "+" : "") + delta;
+    span.title = "Last 24 hours";
+  }
+  td.append(span);
+  return td;
+}
+
+function note(text) {
+  rows.replaceChildren();
+  const td = cell(text, "muted");
+  td.colSpan = 4;
+  rows.insertRow().append(td);
+}
+
+function item(list, text) {
+  list.replaceChildren();
+  const li = document.createElement("li");
+  li.className = "muted";
+  li.textContent = text;
+  list.append(li);
+}
+
+function matchCard(m) {
+  const aWon = m.games_won_a > m.games_won_b;
+  const li = document.createElement("li");
+  li.className = "match";
+  const side = (name, won, cls) => {
+    const span = document.createElement("span");
+    span.className = `side ${cls}` + (won ? " win" : "");
+    span.textContent = name;
+    return span;
+  };
+  const score = document.createElement("span");
+  score.className = "score";
+  score.textContent = `${m.games_won_a} – ${m.games_won_b}`;
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  for (const [a, b] of m.games) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = `${a}-${b}`;
+    meta.append(chip);
+  }
+  const when = document.createElement("time");
+  when.textContent = new Date(m.played_at).toLocaleString(undefined,
+    { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  meta.append(when);
+
+  li.append(side(m.player_a, aWon, "a"), score, side(m.player_b, !aWon, "b"), meta);
+  return li;
+}
+
+// Turn a match around so `a` is always on the left side.
+function facing(m, a) {
+  if (m.player_a === a) return m;
+  return {
+    ...m,
+    player_a: m.player_b, player_b: m.player_a,
+    games_won_a: m.games_won_b, games_won_b: m.games_won_a,
+    games: m.games.map(([x, y]) => [y, x]),
+  };
+}
+
+// Matches, games and points won by each side, from a's point of view.
+function tally(list) {
+  const t = { matches: [0, 0], games: [0, 0], points: [0, 0] };
+  for (const m of list) {
+    t.matches[m.games_won_a > m.games_won_b ? 0 : 1]++;
+    t.games[0] += m.games_won_a;
+    t.games[1] += m.games_won_b;
+    for (const [x, y] of m.games) { t.points[0] += x; t.points[1] += y; }
+  }
+  return t;
+}
+
+async function showHeadToHead(table) {
+  const a = document.getElementById("h2h-a").value;
+  const b = document.getElementById("h2h-b").value;
+  const stats = document.getElementById("h2h-stats");
+  const list = document.getElementById("h2h-matches");
+  list.replaceChildren();
+  stats.hidden = true;
+  if (!a || !b || a === b) return;
+
+  const url = `/api/h2h?table=${encodeURIComponent(table)}` +
+              `&a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`;
+  let played;
+  try {
+    played = (await fetch(url, { cache: "no-store" }).then(r => r.json())).matches;
+  } catch {
+    played = null;
+  }
+  // a newer pick may have landed while this one was loading
+  if (a !== document.getElementById("h2h-a").value ||
+      b !== document.getElementById("h2h-b").value) return;
+  if (!Array.isArray(played)) return item(list, "Could not load head to head.");
+  if (played.length === 0) return item(list, `${a} and ${b} have not played here yet.`);
+
+  const oriented = played.map(m => facing(m, a));
+  const t = tally(oriented);
+  stats.replaceChildren();
+  for (const [label, [x, y]] of [["Matches", t.matches], ["Games", t.games], ["Points", t.points]]) {
+    const row = document.createElement("div");
+    const left = document.createElement("strong");
+    const mid = document.createElement("span");
+    const right = document.createElement("strong");
+    left.textContent = x;
+    mid.textContent = label;
+    right.textContent = y;
+    if (x > y) left.className = "lead";
+    if (y > x) right.className = "lead";
+    row.append(left, mid, right);
+    stats.append(row);
+  }
+  stats.hidden = false;
+  list.append(...oriented.map(matchCard));
+}
+
+function setupHeadToHead(table, ranking) {
+  const pickA = document.getElementById("h2h-a");
+  const pickB = document.getElementById("h2h-b");
+  for (const pick of [pickA, pickB]) {
+    pick.replaceChildren(new Option("Pick a player", ""),
+      ...ranking.map(e => new Option(e.name, e.name)));
+    pick.onchange = () => showHeadToHead(table);
+  }
+}
+
+async function load() {
+  const table = await requireTable();
+  if (!table) return;
+
+  document.title = `${table} · NPPU`;
+  document.getElementById("title").textContent = table;
+  setupNav(table, "board");
+
+  const ranking = await apiGet("leaderboard", table);
+  if (!Array.isArray(ranking) || ranking.length === 0) {
+    note("No matches recorded at this table yet.");
+  } else {
+    setupHeadToHead(table, ranking);
+    rows.replaceChildren();
+    for (const entry of ranking) {
+      rows.insertRow().append(
+        rankCell(entry.rank),
+        cell(entry.name),
+        // elo is stored as a float; whole numbers are for humans
+        eloCell(entry.elo, entry.change_24h),
+        cell(entry.games_played, "elo"),
+      );
+    }
+  }
+
+  const played = (await apiGet("matches", table))?.matches ?? [];
+  if (played.length === 0) {
+    item(matches, "Nothing recorded here yet.");
+    return;
+  }
+  matches.replaceChildren();
+  // the api already returns newest first
+  matches.append(...played.map(matchCard));
+}
+
+load();
+</script>
+
+<footer>
+  <p>Forgot your code? Email
+    <a href="mailto:wilhelbr@stud.ntnu.no">wilhelbr@stud.ntnu.no</a> and it will be reset.</p>
+  <p class="muted">Made by Ole Marius Green &amp; Wilhelm Brente</p>
+</footer>
+
+</body>
+</html>
