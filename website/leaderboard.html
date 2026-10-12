@@ -96,10 +96,22 @@ function matchCard(m) {
   const aWon = m.games_won_a > m.games_won_b;
   const li = document.createElement("li");
   li.className = "match";
-  const side = (name, won, cls) => {
+  // h2h is the side's match wins against the other, shown on the outer edge:
+  // (x) Ola 3 – 1 Sofie (y). Absent in the head to head list, which has stats.
+  const side = (name, won, cls, h2h) => {
     const span = document.createElement("span");
     span.className = `side ${cls}` + (won ? " win" : "");
-    span.textContent = name;
+    const label = document.createElement("span");
+    label.className = "name";
+    label.textContent = name;
+    span.append(label);
+    if (h2h != null) {
+      const count = document.createElement("span");
+      count.className = "h2h";
+      count.textContent = `(${h2h})`;
+      count.title = "Head to head match wins";
+      if (cls === "a") span.prepend(count, " "); else span.append(" ", count);
+    }
     return span;
   };
   const score = document.createElement("span");
@@ -119,7 +131,8 @@ function matchCard(m) {
     { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   meta.append(when);
 
-  li.append(side(m.player_a, aWon, "a"), score, side(m.player_b, !aWon, "b"), meta);
+  li.append(side(m.player_a, aWon, "a", m.h2h_a), score,
+            side(m.player_b, !aWon, "b", m.h2h_b), meta);
   return li;
 }
 

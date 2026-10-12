@@ -180,10 +180,17 @@ async function getLeaderboard(db, table) {
   }));
 }
 
+// h2h_a / h2h_b are each side's all-time match wins against the other at this
+// table, as it stands now (not as it stood when the match was played).
 async function getMatches(db, table, limit = 10) {
+  const wins = side => `(SELECT COUNT(*) FROM matches x
+              WHERE x.table_name = m.table_name AND x.winner = m.${side}
+                AND ((x.player_a = m.player_a AND x.player_b = m.player_b)
+                  OR (x.player_a = m.player_b AND x.player_b = m.player_a)))`;
   const { results } = await db.prepare(
-    `SELECT player_a, player_b, winner, games_won_a, games_won_b, games, played_at
-       FROM matches WHERE table_name = ? ORDER BY id DESC LIMIT ?`
+    `SELECT player_a, player_b, winner, games_won_a, games_won_b, games, played_at,
+            ${wins("player_a")} AS h2h_a, ${wins("player_b")} AS h2h_b
+       FROM matches m WHERE table_name = ? ORDER BY id DESC LIMIT ?`
   ).bind(table, limit).all();
   return results.map(r => ({ ...r, games: JSON.parse(r.games) }));
 }

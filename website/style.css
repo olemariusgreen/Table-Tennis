@@ -348,9 +348,10 @@ td.code { font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.15em
 .match .side { font-weight: 600; color: var(--muted); overflow-wrap: anywhere; }
 .match .side.a { text-align: right; }
 .match .side.win { color: #fff; }
-.match .side.win::after { content: " ●"; color: #5fd068; font-size: 0.7em; vertical-align: middle; }
-.match .side.a.win::after { content: none; }
-.match .side.a.win::before { content: "● "; color: #5fd068; font-size: 0.7em; vertical-align: middle; }
+.match .side.win .name::after { content: " ●"; color: #5fd068; font-size: 0.7em; vertical-align: middle; }
+.match .side.a.win .name::after { content: none; }
+.match .side.a.win .name::before { content: "● "; color: #5fd068; font-size: 0.7em; vertical-align: middle; }
+.match .side .h2h { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
 .match .score {
   padding: 2px 12px;
   border-radius: 6px;
