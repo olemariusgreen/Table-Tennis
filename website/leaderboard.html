@@ -27,15 +27,6 @@
     <tbody id="rows"><tr><td colspan="4" class="muted">Loading…</td></tr></tbody>
   </table>
 
-  <h2>Head to head</h2>
-  <div class="h2h-pick">
-    <select id="h2h-a" aria-label="First player"></select>
-    <span class="muted">vs</span>
-    <select id="h2h-b" aria-label="Second player"></select>
-  </div>
-  <div id="h2h-stats" class="h2h-stats" hidden></div>
-  <ul id="h2h-matches" class="matches"></ul>
-
   <h2>Recent matches</h2>
   <ul id="matches" class="matches"><li class="muted">Loading…</li></ul>
 </main>
@@ -97,7 +88,7 @@ function matchCard(m) {
   const li = document.createElement("li");
   li.className = "match";
   // h2h is the side's match wins against the other, shown on the outer edge:
-  // (x) Ola 3 – 1 Sofie (y). Absent in the head to head list, which has stats.
+  // (x) Ola 3 – 1 Sofie (y).
   const side = (name, won, cls, h2h) => {
     const span = document.createElement("span");
     span.className = `side ${cls}` + (won ? " win" : "");
@@ -136,82 +127,6 @@ function matchCard(m) {
   return li;
 }
 
-// Turn a match around so `a` is always on the left side.
-function facing(m, a) {
-  if (m.player_a === a) return m;
-  return {
-    ...m,
-    player_a: m.player_b, player_b: m.player_a,
-    games_won_a: m.games_won_b, games_won_b: m.games_won_a,
-    games: m.games.map(([x, y]) => [y, x]),
-  };
-}
-
-// Matches, games and points won by each side, from a's point of view.
-function tally(list) {
-  const t = { matches: [0, 0], games: [0, 0], points: [0, 0] };
-  for (const m of list) {
-    t.matches[m.games_won_a > m.games_won_b ? 0 : 1]++;
-    t.games[0] += m.games_won_a;
-    t.games[1] += m.games_won_b;
-    for (const [x, y] of m.games) { t.points[0] += x; t.points[1] += y; }
-  }
-  return t;
-}
-
-async function showHeadToHead(table) {
-  const a = document.getElementById("h2h-a").value;
-  const b = document.getElementById("h2h-b").value;
-  const stats = document.getElementById("h2h-stats");
-  const list = document.getElementById("h2h-matches");
-  list.replaceChildren();
-  stats.hidden = true;
-  if (!a || !b || a === b) return;
-
-  const url = `/api/h2h?table=${encodeURIComponent(table)}` +
-              `&a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`;
-  let played;
-  try {
-    played = (await fetch(url, { cache: "no-store" }).then(r => r.json())).matches;
-  } catch {
-    played = null;
-  }
-  // a newer pick may have landed while this one was loading
-  if (a !== document.getElementById("h2h-a").value ||
-      b !== document.getElementById("h2h-b").value) return;
-  if (!Array.isArray(played)) return item(list, "Could not load head to head.");
-  if (played.length === 0) return item(list, `${a} and ${b} have not played here yet.`);
-
-  const oriented = played.map(m => facing(m, a));
-  const t = tally(oriented);
-  stats.replaceChildren();
-  for (const [label, [x, y]] of [["Matches", t.matches], ["Games", t.games], ["Points", t.points]]) {
-    const row = document.createElement("div");
-    const left = document.createElement("strong");
-    const mid = document.createElement("span");
-    const right = document.createElement("strong");
-    left.textContent = x;
-    mid.textContent = label;
-    right.textContent = y;
-    if (x > y) left.className = "lead";
-    if (y > x) right.className = "lead";
-    row.append(left, mid, right);
-    stats.append(row);
-  }
-  stats.hidden = false;
-  list.append(...oriented.map(matchCard));
-}
-
-function setupHeadToHead(table, ranking) {
-  const pickA = document.getElementById("h2h-a");
-  const pickB = document.getElementById("h2h-b");
-  for (const pick of [pickA, pickB]) {
-    pick.replaceChildren(new Option("Pick a player", ""),
-      ...ranking.map(e => new Option(e.name, e.name)));
-    pick.onchange = () => showHeadToHead(table);
-  }
-}
-
 async function load() {
   const table = await requireTable();
   if (!table) return;
@@ -224,7 +139,6 @@ async function load() {
   if (!Array.isArray(ranking) || ranking.length === 0) {
     note("No matches recorded at this table yet.");
   } else {
-    setupHeadToHead(table, ranking);
     rows.replaceChildren();
     for (const entry of ranking) {
       rows.insertRow().append(

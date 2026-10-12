@@ -378,20 +378,3 @@ td.code { font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.15em
 }
 .match time { color: var(--muted); margin-left: 6px; }
 
-/* ---------- leaderboard: head to head ---------- */
-
-.h2h-pick { display: flex; align-items: center; gap: 10px; }
-.h2h-pick select { flex: 1; min-width: 0; margin: 0; }
-.h2h-stats { display: grid; gap: 4px; margin: 14px 0; }
-.h2h-stats div {
-  display: grid;
-  grid-template-columns: 1fr 6em 1fr;
-  align-items: center;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-.h2h-stats span { color: var(--muted); font-size: 0.85rem; }
-.h2h-stats strong { font-size: 1.3rem; color: var(--muted); }
-.h2h-stats strong.lead { color: #f5c542; }
-.board .matches:empty { display: none; }
-
