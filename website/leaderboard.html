@@ -119,7 +119,7 @@ function matchCard(m) {
   }
   const when = document.createElement("time");
   when.textContent = new Date(m.played_at).toLocaleString(undefined,
-    { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   meta.append(when);
 
   li.append(side(m.player_a, aWon, "a", m.h2h_a), score,

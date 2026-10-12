@@ -125,7 +125,7 @@ async function loadAnnouncements() {
   for (const a of announcements) {
     const li = el("li");
     const text = el("div", a.body);
-    li.append(el("time", new Date(a.posted_at).toLocaleString()), text);
+    li.append(el("time", new Date(a.posted_at).toLocaleString(undefined, { hourCycle: "h23" })), text);
     if (editing) {
       const edit = el("button", "Edit");
       const del = el("button", "Delete");
